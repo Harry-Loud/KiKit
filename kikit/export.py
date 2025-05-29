@@ -29,6 +29,8 @@ exportSettingsJlcpcb = {
     "MergeNPTH": True,
     "ZerosFormat": GENDRILL_WRITER_BASE.DECIMAL_FORMAT,
     "SubstractMaskFromSilk": True
+    "UseGerberX2format": False
+    "SubtractMaskFromSilk": False
 }
 
 exportSettingsPcbway = {
@@ -73,14 +75,22 @@ def gerberImpl(boardfile, outputdir, plot_plan=fullGerberPlotPlan, drilling=True
 
     If no output dir is specified, use '<board file>-gerber'
     """
-    basename = os.path.basename(boardfile)
+    board = None
+    basename = None
+    if isinstance(boardfile, pcbnew.BOARD):
+        board = boardfile
+        basename = os.path.basename(boardfile.GetFileName())
+    else:
+        basename = os.path.basename(boardfile)
+        board = pcbnew.LoadBoard(boardfile)
+
+
     if outputdir:
         plotDir = outputdir
     else:
         plotDir = basename + "-gerber"
     plotDir = os.path.abspath(plotDir)
 
-    board = LoadBoard(boardfile)
 
     pctl = PLOT_CONTROLLER(board)
     popt = pctl.GetPlotOptions()
@@ -99,10 +109,10 @@ def gerberImpl(boardfile, outputdir, plot_plan=fullGerberPlotPlan, drilling=True
     setExcludeEdgeLayer(popt, settings["ExcludeEdgeLayer"])
     popt.SetScale(1)
     popt.SetUseAuxOrigin(settings["UseAuxOrigin"])
-    popt.SetUseGerberX2format(False)
+    popt.SetUseGerberX2format(settings["UseGerberX2format"])
 
     # This by gerbers only
-    popt.SetSubtractMaskFromSilk(False)
+    popt.SetSubtractMaskFromSilk(settings["SubtractMaskFromSilk"])
     popt.SetDrillMarksType(pcbnew.DRILL_MARKS_NO_DRILL_SHAPE)
     popt.SetSkipPlotNPTH_Pads(False)
 
@@ -168,7 +178,7 @@ def gerberImpl(boardfile, outputdir, plot_plan=fullGerberPlotPlan, drilling=True
         rptfn = pctl.GetPlotDirName() + 'drill_report.rpt'
         drlwriter.GenDrillReportFile(rptfn)
 
-    job_fn=os.path.dirname(pctl.GetPlotFileName()) + '/' + os.path.basename(boardfile)
+    job_fn=os.path.dirname(pctl.GetPlotFileName()) + '/' + basename
     job_fn=os.path.splitext(job_fn)[0] + '.gbrjob'
     jobfile_writer.CreateJobFile(job_fn)
 

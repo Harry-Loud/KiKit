@@ -42,7 +42,7 @@ class TabError(RuntimeError):
 class TabFilletError(RuntimeError):
     pass
 
-def roundPoint(point, precision=-2):
+def roundPoint(point, precision=-4):
     return (round(point[0], precision), round(point[1], precision))
 
 def getStartPoint(geom):
