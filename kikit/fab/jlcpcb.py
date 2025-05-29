@@ -8,6 +8,7 @@ from pathlib import Path
 from kikit.fab.common import *
 from kikit.common import *
 from kikit.export import gerberImpl
+from collections.abc import Iterable
 
 def collectBom(components, lscsFields, ignore):
     bom = {}
@@ -15,7 +16,7 @@ def collectBom(components, lscsFields, ignore):
         if getUnit(c) != 1:
             continue
         reference = getReference(c)
-        if reference.startswith("#PWR") or reference.startswith("#FL"):
+        if "#PWR" in reference or "#FL" in reference:
             continue
         if reference in ignore:
             continue
@@ -61,8 +62,12 @@ def exportJlcpcb(board, outputdir, assembly, schematic, ignore, field,
     """
     Prepare fabrication files for JLCPCB including their assembly service
     """
-    ensureValidBoard(board)
-    loadedBoard = pcbnew.LoadBoard(board)
+    loadedBoard = None
+    if isinstance(board, pcbnew.BOARD):
+        loadedBoard = board
+    else:
+        ensureValidBoard(board)
+        loadedBoard = pcbnew.LoadBoard(board)
 
     if drc:
         ensurePassingDrc(loadedBoard)
@@ -87,10 +92,29 @@ def exportJlcpcb(board, outputdir, assembly, schematic, ignore, field,
     if schematic is None:
         raise RuntimeError("When outputing assembly data, schematic is required")
 
-    ensureValidSch(schematic)
-
     correctionFields = [x.strip() for x in corrections.split(",")]
-    components = extractComponents(schematic)
+
+
+    components = []
+    if isinstance(schematic, Iterable):
+        for schem in schematic:  # Get both index and item
+            path = None
+            if isinstance(schem, str):
+                path = schem
+            elif isinstance(schem, dict) and "file" in schem:
+                path = schem["file"]
+
+            ensureValidSch(path)
+            tmp_components = extractComponents(path)
+
+            if isinstance(schem, dict) and "refRenamer" in schem:
+                for component in tmp_components:
+                    component.properties["Reference"] = schem["refRenamer"](component.properties["Reference"])
+            components += tmp_components
+    else:
+        ensureValidSch(schematic)
+        components = extractComponents(schematic)
+
     ordercodeFields = [x.strip() for x in field.split(",")]
     bom = collectBom(components, ordercodeFields, refsToIgnore)
 

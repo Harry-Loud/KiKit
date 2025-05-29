@@ -144,6 +144,7 @@ class Origin(Enum):
     TopRight = 2
     BottomLeft = 3
     BottomRight = 4
+    Unchanged = 5
 
 
 class NetClass():
@@ -185,6 +186,8 @@ def getOriginCoord(origin, bBox):
         return VECTOR2I(bBox.GetX(), bBox.GetY() + bBox.GetHeight())
     if origin == Origin.BottomRight:
         return VECTOR2I(bBox.GetX() + bBox.GetWidth(), bBox.GetY() + bBox.GetHeight())
+    if origin == Origin.Unchanged:
+        return VECTOR2I(0, 0)
 
 def appendItem(board: pcbnew.BOARD, item: pcbnew.BOARD_ITEM,
                yieldMapping: Optional[Callable[[str, str], None]]=None) -> None:
@@ -336,7 +339,7 @@ def renameNets(board, renamer):
         if name != "" and name not in newNames:
             board.RemoveNative(netinfo.GetNetItem(name))
 
-def renameRefs(board, renamer):
+def renameRefs(board, renamer, renameRefSilkscreen = True):
     """
     Given a board and renaming function (taking original name, returning new
     name) renames the references
@@ -344,6 +347,26 @@ def renameRefs(board, renamer):
     for footprint in board.GetFootprints():
         ref = footprint.Reference().GetText()
         footprint.Reference().SetText(renamer(ref))
+
+        if (not renameRefSilkscreen):
+            PhantomRefText = None
+            if hasattr(pcbnew, "FP_TEXT"):
+                PhantomRefText = pcbnew.FP_TEXT(footprint.Reference())
+            elif hasattr(pcbnew, "PCB_TEXT"):
+                PhantomRefText = pcbnew.PCB_TEXT(footprint.Reference())
+            else:
+                raise RuntimeError(
+                    "renameRefSilkscreen Error: FP_TEXT or PCB_TEXT class not located, likely a KiCad version incompatibility error"
+                )
+
+            PhantomRefText.SetAttributes(footprint.Reference().GetAttributes())
+            PhantomRefText.SetPosition(footprint.Reference().GetPosition())
+            PhantomRefText.SetTextAngle(footprint.Reference().GetTextAngle())
+            PhantomRefText.SetLayer(footprint.Reference().GetLayer())
+            PhantomRefText.SetText(ref)
+            footprint.Add(PhantomRefText)
+            footprint.Reference().SetVisible(False)
+        
 
 def isBoardEdge(edge):
     """
@@ -992,7 +1015,7 @@ class Panel:
                     netRenamer: Optional[Callable[[int, str], str]] = None,
                     refRenamer: Optional[Callable[[int, str], str]] = None,
                     inheritDrc: bool = True, interpretAnnotations: bool=True,
-                    bakeText: bool = False):
+                    bakeText: bool = False, renameRefSilkscreen:bool = True):
         """
         Appends a board to the panel.
 
@@ -1063,7 +1086,7 @@ class Panel:
 
         renameNets(board, netRenamerFn)
         if refRenamer is not None:
-            renameRefs(board, lambda x: refRenamer(len(self.substrates), x))
+            renameRefs(board, lambda x: refRenamer(len(self.substrates), x), renameRefSilkscreen)
 
         drawings = collectItems(board.GetDrawings(), enlargedSourceArea)
         footprints = collectFootprints(board.GetFootprints(), enlargedSourceArea)
@@ -2003,6 +2026,8 @@ class Panel:
             zoneArea = zoneArea.difference(substrate.exterior().buffer(clearance))
 
         geoms = [zoneArea] if isinstance(zoneArea, Polygon) else zoneArea.geoms
+
+        zoneArea = zoneArea.simplify(0.5*mm)
 
         for g in geoms:
             zoneContainer = pcbnew.ZONE(self.board)
