@@ -300,7 +300,8 @@ def bomToCsv(bomData, filename):
                 writer.writerow([value, ",".join(refChunk), footprint, lcsc])
 
 def exportJlcpcb(board, outputdir, assembly, schematic, ignore, field,
-           corrections, correctionpatterns, missingerror, nametemplate, drc, refRenamer: Optional[Callable[[int, str], str]] = None,):
+           corrections, correctionpatterns, missingerror, nametemplate, drc,
+           autoname, refRenamer: Optional[Callable[[int, str], str]] = None,):
     """
     Prepare fabrication files for JLCPCB including their assembly service
     """
@@ -332,10 +333,9 @@ def exportJlcpcb(board, outputdir, assembly, schematic, ignore, field,
 
     correctionFields = [x.strip() for x in corrections.split(",")]
 
-
     components = []
-    if isinstance(schematic, Iterable):
-        for schem in schematic:  # Get both index and item
+    if isinstance(schematic, Iterable) and not isinstance(schematic, str):
+        for schem in schematic:
             path = None
             if isinstance(schem, str):
                 path = schem
@@ -351,11 +351,13 @@ def exportJlcpcb(board, outputdir, assembly, schematic, ignore, field,
                     component.properties["Reference"] = schem["refRenamer"](component.properties["Reference"])
             components += tmp_components
     else:
-        path = path.strip("\"")
-        ensureValidSch(schematic)
-        components = extractComponents(schematic)
+        # Here we know `schematic` is a single string (not a list/tuple)
+        path = schematic.strip("\"")
+        ensureValidSch(path)
+        components = extractComponents(path)
 
-    ordercodeFields = [x.strip() for x in field]
+
+    ordercodeFields = [x.strip() for x in field.split(",")]
     bom = collectBom(components, ordercodeFields, refsToIgnore)
 
     bom_refs = set(x for xs in bom.values() for x in xs)
@@ -366,8 +368,7 @@ def exportJlcpcb(board, outputdir, assembly, schematic, ignore, field,
     boardReferences = set([x[0] for x in posData])
     bom = {key: [v for v in val if v in boardReferences] for key, val in bom.items()}
     bom = {key: val for key, val in bom.items() if len(val) > 0}
-
-
+    
     missingFields = False
     for type, references in bom.items():
         _, _, lcsc = type
