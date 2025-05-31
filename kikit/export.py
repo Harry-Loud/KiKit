@@ -29,9 +29,9 @@ exportSettingsJlcpcb = {
     "MergeNPTH": False,
     "MapFileFormat": PLOT_FORMAT_GERBER,
     "ZerosFormat": GENDRILL_WRITER_BASE.DECIMAL_FORMAT,
-    "SubstractMaskFromSilk": True
-    "UseGerberX2format": False
-    "SubtractMaskFromSilk": False
+    "SubstractMaskFromSilk": True,
+    "UseGerberX2format": False,
+    "SubtractMaskFromSilk": False,
 }
 
 exportSettingsPcbway = {

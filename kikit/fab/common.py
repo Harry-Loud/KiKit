@@ -255,3 +255,7 @@ def expandNameTemplate(template: str, filetype: str, board: pcbnew.BOARD) -> str
 def naturalComponentKey(reference: str) -> Tuple[str, int]:
     text, num = splitOnReverse(reference, lambda x: x.isdigit())
     return str(text), int(num)
+
+
+if __name__ == "__main__":
+    print(isValidSchPath("\"D:\Dropbox\Muon3D_SharedFolder\Electrical\PCB Part Release\TLH\PROBEARM\PCB-TLH-PROBEARM-004\PCB-TLH-PROBEARM-004.kicad_sch\""))

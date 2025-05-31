@@ -103,7 +103,7 @@ def exportJlcpcb(board, outputdir, assembly, schematic, ignore, field,
                 path = schem
             elif isinstance(schem, dict) and "file" in schem:
                 path = schem["file"]
-
+            path = path.strip("\"")
             ensureValidSch(path)
             tmp_components = extractComponents(path)
 
@@ -112,6 +112,7 @@ def exportJlcpcb(board, outputdir, assembly, schematic, ignore, field,
                     component.properties["Reference"] = schem["refRenamer"](component.properties["Reference"])
             components += tmp_components
     else:
+        path = path.strip("\"")
         ensureValidSch(schematic)
         components = extractComponents(schematic)
 
